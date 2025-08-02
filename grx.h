@@ -4,9 +4,14 @@
 
 #ifndef GRX_H
 #define GRX_H
+#define VK_USE_PLATFORM_WIN32_KHR
 #include <vulkan/vulkan.h>
 typedef struct grx
 {
     VkInstance instance;
+    VkDebugUtilsMessengerEXT debug_messenger;
 } GRX;
+
+int init_grx(GRX *);
+void free_grx(GRX *);
 #endif //GRX_H

@@ -1,6 +1,7 @@
 //
 // Created by meo-dragon on 7/30/2025.
 //
+#include <stdio.h>
 #include <stdlib.h>
 
 #include "grx.h"
@@ -27,6 +28,9 @@ int main()
     app.surface.run();
 
     free_surface(&app.surface);
+    printf("free_surface\n");
     free_grx(&app.grx);
+    printf("free_grx\n");
+    printf("ok\n");
     return EXIT_SUCCESS;
 }

@@ -10,6 +10,7 @@ typedef struct grx
 {
     VkInstance instance;
     VkDebugUtilsMessengerEXT debug_messenger;
+    VkPhysicalDevice physical_device;
 } GRX;
 
 int init_grx(GRX *);

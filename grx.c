@@ -144,7 +144,7 @@ VkResult create_debug_utils_messenger_ext(VkInstance instance, const VkDebugUtil
     {
         return VK_ERROR_EXTENSION_NOT_PRESENT;
     }
-    printf("create debug messenger\n");
+    printf("[%s:%d] create debug messenger\n", __func__, __LINE__);
     return ((PFN_vkCreateDebugUtilsMessengerEXT)func)(instance, create_info, allocator, debug_messenger);
 }
 
@@ -168,70 +168,51 @@ int setup_debug_messenger(GRX *grx)
         printf("[%s:%d] vkCreateDebugUtilsMessengerEXT failed\n", __func__, __LINE__);
         return EXIT_FAILURE;
     }
-    printf("setup debug messenger\n");
+    printf("[%s:%d] setup debug messenger\n", __func__, __LINE__);
     return EXIT_SUCCESS;
 }
 
-int find_queue_families(VkPhysicalDevice device)
+int pick_physical_device(GRX *grx)
 {
-    printf("find_queue_families\n");
-    uint32_t queue_family_count = 0;
-    vkGetPhysicalDeviceQueueFamilyProperties(device, &queue_family_count, NULL);
-    printf("queue family count: %d\n", queue_family_count);
+    int flag = 0;
+    grx->physical_device = VK_NULL_HANDLE;
 
-    VkQueueFamilyProperties* queue_families = calloc(queue_family_count, sizeof(VkQueueFamilyProperties));
-    vkGetPhysicalDeviceQueueFamilyProperties(device, &queue_family_count, queue_families);
-
-    int queue_flag = -1;
-    for (int i = 0; i < queue_family_count; i++)
-    {
-        if (queue_families[i].queueFlags & VK_QUEUE_GRAPHICS_BIT)
-        {
-            queue_flag = i;
-            break;
-        }
-    }
-
-    free(queue_families);
-    printf("queue flag %d\n", queue_flag);
-    return queue_flag != -1 ? queue_flag : 0;
-}
-
-bool is_device_suitable(VkPhysicalDevice device)
-{
-    return find_queue_families(device);
-}
-
-void pick_physical_device(GRX *grx)
-{
-    VkPhysicalDevice physical_device = VK_NULL_HANDLE;
     uint32_t physical_device_count = 0;
     vkEnumeratePhysicalDevices(grx->instance, &physical_device_count, NULL);
     if (physical_device_count == 0)
     {
         printf("[%s:%d] failed to find GPUs with Vulkan support\n", __func__, __LINE__);
-        return;
+        return flag;
     }
     VkPhysicalDevice* physical_devices = calloc(physical_device_count, sizeof(VkPhysicalDevice));
+    vkEnumeratePhysicalDevices(grx->instance, &physical_device_count, physical_devices);
     for (uint32_t i = 0; i < physical_device_count; i++)
     {
-        printf("device %d\n", i);
-        if (is_device_suitable(physical_devices[i]))
+        uint32_t property_count = 0;
+        vkGetPhysicalDeviceQueueFamilyProperties(physical_devices[i], &property_count, NULL);
+        if (property_count == 0) continue;
+        VkQueueFamilyProperties* properties = calloc(property_count, sizeof(VkQueueFamilyProperties));
+        vkGetPhysicalDeviceQueueFamilyProperties(physical_devices[i], &property_count, properties);
+        for (uint32_t j = 0; j < property_count; j++)
         {
-            physical_device = physical_devices[i];
-            break;
+            if (properties[j].queueFlags & VK_QUEUE_GRAPHICS_BIT)
+            {
+                grx->physical_device = physical_devices[i];
+                flag = 1;
+                printf("[%s:%d] physical device found at index %d\n", __func__, __LINE__, i);
+                break;
+            }
         }
+        free(properties);
     }
 
-    if (physical_device == VK_NULL_HANDLE)
+    if (grx->physical_device == VK_NULL_HANDLE)
     {
         printf("[%s:%d] failed to find a suitable GPU\n", __func__, __LINE__);
-        return;
     }
 
     free(physical_devices);
-    grx->physical_device = physical_device;
-    printf("[%s:%d] pick physical device: %p\n", __func__, __LINE__, grx->physical_device);
+    return flag;
 }
 
 int init_grx(GRX *grx)
@@ -240,7 +221,7 @@ int init_grx(GRX *grx)
 
     if (setup_debug_messenger(grx)) return 1;
 
-    pick_physical_device(grx);
+    if (!pick_physical_device(grx)) return 1;
 
     return 0;
 }

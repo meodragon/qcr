@@ -56,3 +56,6 @@ dkms.conf
 
 # resource
 icon.res
+
+# cmake
+cmake-build-debug/

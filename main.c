@@ -28,9 +28,6 @@ int main()
     app.surface.run();
 
     free_surface(&app.surface);
-    printf("free_surface\n");
     free_grx(&app.grx);
-    printf("free_grx\n");
-    printf("ok\n");
     return EXIT_SUCCESS;
 }

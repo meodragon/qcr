@@ -20,7 +20,7 @@ int main()
     {
         return EXIT_FAILURE;
     }
-    if (init_grx(&app.grx))
+    if (init_grx(&app.grx, &app.surface))
     {
         return EXIT_FAILURE;
     }

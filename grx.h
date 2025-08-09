@@ -6,13 +6,22 @@
 #define GRX_H
 #define VK_USE_PLATFORM_WIN32_KHR
 #include <vulkan/vulkan.h>
+
+#include "surface.h"
+
 typedef struct grx
 {
     VkInstance instance;
     VkDebugUtilsMessengerEXT debug_messenger;
+    VkSurfaceKHR surface;
     VkPhysicalDevice physical_device;
+    uint32_t graphics_queue_index;
+    uint32_t present_queue_index;
+    VkDevice logical_device;
+    VkQueue graphics_queue;
+    VkQueue present_queue;
 } GRX;
 
-int init_grx(GRX *);
+int init_grx(GRX *, const SURFACE *);
 void free_grx(GRX *);
 #endif //GRX_H

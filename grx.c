@@ -7,7 +7,7 @@
 #include "grx.h"
 
 static VKAPI_ATTR VkBool32 VKAPI_CALL debug_callback(VkDebugUtilsMessageSeverityFlagBitsEXT msg_severity,
-    VkDebugUtilsMessageTypeFlagsEXT msgType, const VkDebugUtilsMessengerCallbackDataEXT *callback_data, void *user_data)
+                                                     VkDebugUtilsMessageTypeFlagsEXT msgType, const VkDebugUtilsMessengerCallbackDataEXT *callback_data, void *user_data)
 {
     printf("validation layer: %s\n", callback_data->pMessage);
     return VK_FALSE;
@@ -172,8 +172,44 @@ int setup_debug_messenger(GRX *grx)
     return EXIT_SUCCESS;
 }
 
+bool support_device_extensions(VkPhysicalDevice physical_device, uint32_t count, const char **extensions)
+{
+    uint32_t extension_count = 0;
+    vkEnumerateDeviceExtensionProperties(physical_device, VK_NULL_HANDLE, &extension_count, NULL);
+    if (extension_count == 0) return false;
+
+    VkExtensionProperties *supported_extensions = calloc(extension_count, sizeof(VkExtensionProperties));
+    if (supported_extensions == NULL) return false;
+    vkEnumerateDeviceExtensionProperties(physical_device, VK_NULL_HANDLE, &extension_count, supported_extensions);
+
+    bool found = true;
+    for (uint32_t i = 0; i < count; i++)
+    {
+        bool flag = false;
+        for (uint32_t j = 0; j < extension_count; j++)
+        {
+            if (strcmp(extensions[i], supported_extensions[j].extensionName) == 0)
+            {
+                flag = true;
+                break;
+            }
+        }
+        if (!flag)
+        {
+            printf("[%s:%d] extension %s could not be found\n", __func__, __LINE__, extensions[i]);
+            found = false;
+            break;
+        }
+    }
+
+    free(supported_extensions);
+    return found;
+}
+
 int pick_physical_device(GRX *grx)
 {
+    const char *device_extensions[] = { VK_KHR_SWAPCHAIN_EXTENSION_NAME };
+    uint32_t device_extension_count = sizeof(device_extensions) / sizeof(const char *);
     int flag = 0;
     grx->physical_device = VK_NULL_HANDLE;
 
@@ -197,13 +233,25 @@ int pick_physical_device(GRX *grx)
         {
             if (properties[j].queueFlags & VK_QUEUE_GRAPHICS_BIT)
             {
-                grx->physical_device = physical_devices[i];
+                grx->graphics_queue_index = i;
                 flag = 1;
                 printf("[%s:%d] physical device found at index %d\n", __func__, __LINE__, i);
-                break;
             }
         }
         free(properties);
+
+        VkBool32 present_support = VK_FALSE;
+        vkGetPhysicalDeviceSurfaceSupportKHR(physical_devices[i], i, grx->surface, &present_support);
+        if (present_support)
+        {
+            grx->present_queue_index = i;
+        }
+
+        if (grx->graphics_queue_index == grx->present_queue_index && support_device_extensions(physical_devices[i], device_extension_count, device_extensions))
+        {
+            grx->physical_device = physical_devices[i];
+            break;
+        }
     }
 
     if (grx->physical_device == VK_NULL_HANDLE)
@@ -215,11 +263,54 @@ int pick_physical_device(GRX *grx)
     return flag;
 }
 
-int init_grx(GRX *grx)
+void create_surface(GRX *grx, const SURFACE *surface)
+{
+    VkWin32SurfaceCreateInfoKHR create_info = {};
+    create_info.sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
+    create_info.hwnd = surface->hwnd;
+    create_info.hinstance = surface->h_instance;
+
+    if (vkCreateWin32SurfaceKHR(grx->instance, &create_info, NULL, &grx->surface) != VK_SUCCESS)
+    {
+        printf("[%s:%d] failed to create surface\n", __func__, __LINE__);
+    }
+}
+
+void create_logical_device(GRX *grx)
+{
+    VkDeviceQueueCreateInfo queue_create_info = {};
+    queue_create_info.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+    queue_create_info.queueFamilyIndex = grx->graphics_queue_index;
+    queue_create_info.queueCount = 1;
+
+    float queue_priority = 1.0f;
+    queue_create_info.pQueuePriorities = &queue_priority;
+
+    VkPhysicalDeviceFeatures device_features = {};
+
+    VkDeviceCreateInfo create_info = {};
+    create_info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+    create_info.queueCreateInfoCount = 1;
+    create_info.pQueueCreateInfos = &queue_create_info;
+    create_info.pEnabledFeatures = &device_features;
+    create_info.enabledExtensionCount = 0;
+
+    if (vkCreateDevice(grx->physical_device, &create_info, NULL, &grx->logical_device) != VK_SUCCESS)
+    {
+        printf("[%s:%d] failed to create logical device\n", __func__, __LINE__);
+    }
+
+    vkGetDeviceQueue(grx->logical_device, grx->graphics_queue_index, 0, &grx->graphics_queue);
+    vkGetDeviceQueue(grx->logical_device, grx->present_queue_index, 0, &grx->present_queue);
+}
+
+int init_grx(GRX *grx, const SURFACE *surface)
 {
     if (create_instance(grx)) return 1;
 
     if (setup_debug_messenger(grx)) return 1;
+
+    create_surface(grx, surface);
 
     if (!pick_physical_device(grx)) return 1;
 
@@ -228,8 +319,9 @@ int init_grx(GRX *grx)
 
 void free_grx(GRX *grx)
 {
+    vkDestroyDevice(grx->logical_device, NULL);
     // vkDeviceWaitIdle(grx->device);
     destroy_debug_utils_messenger_ext(grx->instance, grx->debug_messenger, NULL);
-
+    vkDestroySurfaceKHR(grx->instance, grx->surface, NULL);
     vkDestroyInstance(grx->instance, NULL);
 }

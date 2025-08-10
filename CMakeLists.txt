@@ -3,8 +3,13 @@ project(qcr C)
 
 set(CMAKE_C_STANDARD 23)
 
-include_directories("$ENV{VULKAN_SDK}/Include")
-link_directories("$ENV{VULKAN_SDK}/Lib")
+if(WIN32)
+    include_directories("$ENV{VULKAN_SDK}/Include")
+    link_directories("$ENV{VULKAN_SDK}/Lib")
+else()
+    include_directories("$ENV{VULKAN_SDK}/include")
+    link_directories("$ENV{VULKAN_SDK}/x86_64/lib")
+endif()
 
 add_executable(qcr main.c icon.rc
         surface.c
@@ -12,4 +17,8 @@ add_executable(qcr main.c icon.rc
         grx.c
         grx.h)
 
-target_link_libraries(qcr vulkan-1.lib)
+if (WIN32)
+    target_link_libraries(qcr vulkan-1.lib)
+else()
+    target_link_libraries(qcr libvulkan.so)
+endif()

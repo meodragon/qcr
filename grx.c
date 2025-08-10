@@ -3,6 +3,8 @@
 //
 #include <stdio.h>
 #include <stdbool.h>
+#include <stdlib.h>
+#include <string.h>
 
 #include "grx.h"
 
@@ -107,7 +109,9 @@ int create_instance(GRX *grx)
 
     const char *extensions[] = {
         VK_KHR_SURFACE_EXTENSION_NAME,
+#ifdef VK_USE_PLATFORM_WIN32_KHR
         VK_KHR_WIN32_SURFACE_EXTENSION_NAME,
+#endif
         VK_EXT_DEBUG_UTILS_EXTENSION_NAME
     };
     const uint32_t extensionCount = sizeof(extensions) / sizeof(extensions[0]);
@@ -265,6 +269,7 @@ int pick_physical_device(GRX *grx)
 
 void create_surface(GRX *grx, const SURFACE *surface)
 {
+#ifdef VK_USE_PLATFORM_WIN32_KHR
     VkWin32SurfaceCreateInfoKHR create_info = {};
     create_info.sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
     create_info.hwnd = surface->hwnd;
@@ -274,6 +279,7 @@ void create_surface(GRX *grx, const SURFACE *surface)
     {
         printf("[%s:%d] failed to create surface\n", __func__, __LINE__);
     }
+#endif
 }
 
 void create_logical_device(GRX *grx)

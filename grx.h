@@ -4,7 +4,10 @@
 
 #ifndef GRX_H
 #define GRX_H
+#ifdef _WIN32
 #define VK_USE_PLATFORM_WIN32_KHR
+#else
+#endif
 #include <vulkan/vulkan.h>
 
 #include "surface.h"

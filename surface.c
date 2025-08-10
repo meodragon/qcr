@@ -5,6 +5,7 @@
 
 #include "surface.h"
 
+#ifdef _WIN32
 const char g_szClassName[] = "qcrWindowClass";
 
 LRESULT CALLBACK MSG_CALLBACK(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
@@ -48,12 +49,15 @@ LRESULT CALLBACK MSG_CALLBACK(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
     }
     return 0;
 }
+#else
+#endif
 
 // Utils
 int message_loop();
 
 int init_surface(SURFACE* surface)
 {
+#ifdef _WIN32
     WNDCLASSEX wc;
 
     surface->h_instance = GetModuleHandle(NULL);
@@ -99,15 +103,22 @@ int init_surface(SURFACE* surface)
 
     surface->run = message_loop;
     return 0;
+#else
+    return -1;
+#endif
 }
 
 void free_surface(SURFACE* surface)
 {
+#ifdef _WIN32
     DestroyWindow(surface->hwnd);
+#else
+#endif
 }
 
 int message_loop()
 {
+#ifdef _WIN32
     // Step 3: The Message Loop
     MSG msg;
     while(GetMessage(&msg, NULL, 0, 0) > 0)
@@ -121,4 +132,7 @@ int message_loop()
     if (msg.wParam == 0) printf("window closed\n");
 
     return 0;
+#else
+    return -1;
+#endif
 }

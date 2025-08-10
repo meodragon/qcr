@@ -6,13 +6,19 @@
 #define SURFACE_H
 #include <stdint.h>
 
+#ifdef _WIN32
 #include <windows.h>
 #include "resource.h"
+#else
+#endif
 
 typedef struct surface
 {
+#ifdef _WIN32
     HINSTANCE h_instance;
     HWND hwnd;
+#else
+#endif
     uint32_t width;
     uint32_t height;
     int (*run)();

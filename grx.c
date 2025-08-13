@@ -210,6 +210,77 @@ bool support_device_extensions(VkPhysicalDevice physical_device, uint32_t count,
     return found;
 }
 
+VkSurfaceFormatKHR choose_swap_surface_format(const uint32_t count, const VkSurfaceFormatKHR *available_formats)
+{
+    for(uint32_t i = 0; i < count; i++)
+    {
+        const bool found_format = available_formats[i].format == VK_FORMAT_B8G8R8A8_SRGB;
+        const bool found_color_space = available_formats[i].colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
+        if (found_format && found_color_space) return available_formats[i];
+    }
+
+    return available_formats[0];
+}
+
+VkPresentModeKHR choose_swap_present_mode(const uint32_t count, const VkPresentModeKHR *available_present_modes)
+{
+    for (uint32_t i = 0; i < count; i++)
+    {
+        if(available_present_modes[i] == VK_PRESENT_MODE_MAILBOX_KHR) return available_present_modes[i];
+    }
+
+    return VK_PRESENT_MODE_FIFO_KHR;
+}
+
+VkExtent2D choose_swap_extent(const VkSurfaceCapabilitiesKHR *capabilities, const uint32_t width, const uint32_t height)
+{
+    if (capabilities->currentExtent.width != UINT32_MAX) {
+        return capabilities->currentExtent;
+    }
+
+    VkExtent2D actualExtent = {width, height};
+    if (actualExtent.width < capabilities->minImageExtent.width) {
+        actualExtent.width = capabilities->minImageExtent.width;
+    } else if (actualExtent.width > capabilities->maxImageExtent.width) {
+        actualExtent.width = capabilities->maxImageExtent.width;
+    }
+    if (actualExtent.height < capabilities->minImageExtent.height) {
+        actualExtent.height = capabilities->minImageExtent.height;
+    } else if (actualExtent.height > capabilities->maxImageExtent.height) {
+        actualExtent.height = capabilities->maxImageExtent.height;
+    }
+    printf("actual 2d extent: %dx%d\n", actualExtent.width, actualExtent.height);
+
+    return actualExtent;
+}
+
+bool support_swap_chain(GRX *grx)
+{
+    printf("[%s:%d] support_swap_chain\n", __func__, __LINE__);
+    grx->surface_capabilities = calloc(1, sizeof(VkSurfaceCapabilitiesKHR));
+    vkGetPhysicalDeviceSurfaceCapabilitiesKHR(grx->physical_device, grx->surface, grx->surface_capabilities);
+
+    printf("[%s:%d] support_swap_chain\n", __func__, __LINE__);
+    uint32_t format_count = 0;
+    vkGetPhysicalDeviceSurfaceFormatsKHR(grx->physical_device, grx->surface, &format_count, NULL);
+    if (format_count == 0) return false;
+
+    grx->surface_format_count = format_count;
+    grx->surface_formats = calloc(format_count, sizeof(VkSurfaceFormatKHR));
+    vkGetPhysicalDeviceSurfaceFormatsKHR(grx->physical_device, grx->surface, &format_count, grx->surface_formats);
+
+    printf("[%s:%d] support_swap_chain\n", __func__, __LINE__);
+    uint32_t present_mode_count = 0;
+    vkGetPhysicalDeviceSurfacePresentModesKHR(grx->physical_device, grx->surface, &present_mode_count, NULL);
+    if (present_mode_count == 0) return false;
+
+    grx->present_mode_count = present_mode_count;
+    grx->present_modes = calloc(present_mode_count, sizeof(VkPresentModeKHR));
+    vkGetPhysicalDeviceSurfacePresentModesKHR(grx->physical_device, grx->surface, &present_mode_count, grx->present_modes);
+
+    return true;
+}
+
 int pick_physical_device(GRX *grx)
 {
     const char *device_extensions[] = { VK_KHR_SWAPCHAIN_EXTENSION_NAME };
@@ -240,6 +311,7 @@ int pick_physical_device(GRX *grx)
                 grx->graphics_queue_index = i;
                 flag = 1;
                 printf("[%s:%d] physical device found at index %d\n", __func__, __LINE__, i);
+                break;
             }
         }
         free(properties);
@@ -251,10 +323,22 @@ int pick_physical_device(GRX *grx)
             grx->present_queue_index = i;
         }
 
-        if (grx->graphics_queue_index == grx->present_queue_index && support_device_extensions(physical_devices[i], device_extension_count, device_extensions))
+
+        if (grx->graphics_queue_index == grx->present_queue_index)
         {
             grx->physical_device = physical_devices[i];
-            break;
+            bool extensions_supported = support_device_extensions(physical_devices[i], device_extension_count, device_extensions);
+            bool swap_chain_adequate = support_swap_chain(grx);
+            if (extensions_supported && swap_chain_adequate) break;
+
+            grx->physical_device == VK_NULL_HANDLE;
+
+            free(grx->surface_capabilities);
+            grx->surface_capabilities = NULL;
+            free(grx->surface_formats);
+            grx->surface_formats = NULL;
+            free(grx->present_modes);
+            grx->present_modes = NULL;
         }
     }
 
@@ -279,6 +363,9 @@ void create_surface(GRX *grx, const SURFACE *surface)
     {
         printf("[%s:%d] failed to create surface\n", __func__, __LINE__);
     }
+
+    grx->surface_width = &surface->width;
+    grx->surface_height = &surface->height;
 #endif
 }
 
@@ -310,6 +397,18 @@ void create_logical_device(GRX *grx)
     vkGetDeviceQueue(grx->logical_device, grx->present_queue_index, 0, &grx->present_queue);
 }
 
+void create_swap_chain(GRX *grx)
+{
+    VkSurfaceFormatKHR surface_format = choose_swap_surface_format(grx->surface_format_count, grx->surface_formats);
+    printf("[%s:%d] surface format %d, color space %d\n", __func__, __LINE__, surface_format.format, surface_format.colorSpace);
+    VkPresentModeKHR present_mode = choose_swap_present_mode(grx->present_mode_count, grx->present_modes);
+    printf("[%s:%d] present mode %d\n", __func__, __LINE__, present_mode);
+    VkExtent2D extent = choose_swap_extent(grx->surface_capabilities, *grx->surface_width, *grx->surface_height);
+    printf("[%s:%d] extent width %d, height %d\n", __func__, __LINE__, extent.width, extent.height);
+
+    // uint32_t image_count = capabilities.minImageCount;
+}
+
 int init_grx(GRX *grx, const SURFACE *surface)
 {
     if (create_instance(grx)) return 1;
@@ -320,11 +419,21 @@ int init_grx(GRX *grx, const SURFACE *surface)
 
     if (!pick_physical_device(grx)) return 1;
 
+    create_swap_chain(grx);
+
     return 0;
 }
 
 void free_grx(GRX *grx)
 {
+    // allocated memory
+    free(grx->surface_capabilities);
+    grx->surface_capabilities = NULL;
+    free(grx->surface_formats);
+    grx->surface_formats = NULL;
+    free(grx->present_modes);
+    grx->present_modes = NULL;
+
     vkDestroyDevice(grx->logical_device, NULL);
     // vkDeviceWaitIdle(grx->device);
     destroy_debug_utils_messenger_ext(grx->instance, grx->debug_messenger, NULL);

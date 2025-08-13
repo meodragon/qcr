@@ -17,12 +17,19 @@ typedef struct grx
     VkInstance instance;
     VkDebugUtilsMessengerEXT debug_messenger;
     VkSurfaceKHR surface;
+    const uint32_t *surface_width;
+    const uint32_t *surface_height;
     VkPhysicalDevice physical_device;
     uint32_t graphics_queue_index;
     uint32_t present_queue_index;
     VkDevice logical_device;
     VkQueue graphics_queue;
     VkQueue present_queue;
+    VkSurfaceCapabilitiesKHR *surface_capabilities;
+    uint32_t surface_format_count;
+    VkSurfaceFormatKHR *surface_formats;
+    uint32_t present_mode_count;
+    VkPresentModeKHR *present_modes;
 } GRX;
 
 int init_grx(GRX *, const SURFACE *);

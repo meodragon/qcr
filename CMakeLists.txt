@@ -8,7 +8,7 @@ if(WIN32)
     link_directories("$ENV{VULKAN_SDK}/Lib")
 else()
     include_directories("$ENV{VULKAN_SDK}/include")
-    link_directories("$ENV{VULKAN_SDK}/x86_64/lib")
+    link_directories("$ENV{VULKAN_SDK}/lib")
 endif()
 
 add_executable(qcr main.c icon.rc

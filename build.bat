@@ -1,7 +1,7 @@
 @echo off
 rem rtc Build Steps on Windows
 rem to use a developer environment, it might be necessary to execute, for example:
-rem ENV="C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat"
+rem SET ENV="C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat"
 rem CALL %ENV%
 
 if "%1%"=="help" goto usage

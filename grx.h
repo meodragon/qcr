@@ -30,6 +30,7 @@ typedef struct grx
     VkSurfaceFormatKHR *surface_formats;
     uint32_t present_mode_count;
     VkPresentModeKHR *present_modes;
+    VkSwapchainKHR swap_chain;
 } GRX;
 
 int init_grx(GRX *, const SURFACE *);

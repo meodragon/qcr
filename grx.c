@@ -323,7 +323,7 @@ int pick_physical_device(GRX *grx)
             grx->present_queue_index = i;
         }
 
-
+        printf("WARN [%s:%d] graphics queue index: %d, present queue index: %d\n", __func__, __LINE__, grx->graphics_queue_index, grx->present_queue_index);
         if (grx->graphics_queue_index == grx->present_queue_index)
         {
             grx->physical_device = physical_devices[i];
@@ -371,27 +371,37 @@ void create_surface(GRX *grx, const SURFACE *surface)
 
 void create_logical_device(GRX *grx)
 {
-    VkDeviceQueueCreateInfo queue_create_info = {};
-    queue_create_info.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-    queue_create_info.queueFamilyIndex = grx->graphics_queue_index;
-    queue_create_info.queueCount = 1;
+    uint32_t queue_create_info_count = 1;
+    VkDeviceQueueCreateInfo *queue_create_infos = calloc(queue_create_info_count, sizeof(VkDeviceQueueCreateInfo));
 
     float queue_priority = 1.0f;
-    queue_create_info.pQueuePriorities = &queue_priority;
+    for (uint32_t i = 0; i < queue_create_info_count; i++)
+    {
+        VkDeviceQueueCreateInfo queue_create_info = {};
+        queue_create_info.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+        queue_create_info.queueFamilyIndex = grx->graphics_queue_index;
+        queue_create_info.queueCount = 1;
+
+        queue_create_info.pQueuePriorities = &queue_priority;
+        queue_create_infos[i] = queue_create_info;
+    }
 
     VkPhysicalDeviceFeatures device_features = {};
 
     VkDeviceCreateInfo create_info = {};
     create_info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
     create_info.queueCreateInfoCount = 1;
-    create_info.pQueueCreateInfos = &queue_create_info;
+    create_info.pQueueCreateInfos = queue_create_infos;
     create_info.pEnabledFeatures = &device_features;
-    create_info.enabledExtensionCount = 0;
+    const char *device_extensions[] = { VK_KHR_SWAPCHAIN_EXTENSION_NAME };
+    create_info.enabledExtensionCount = 1;
+    create_info.ppEnabledExtensionNames = device_extensions;
 
     if (vkCreateDevice(grx->physical_device, &create_info, NULL, &grx->logical_device) != VK_SUCCESS)
     {
         printf("[%s:%d] failed to create logical device\n", __func__, __LINE__);
     }
+    free(queue_create_infos);
 
     vkGetDeviceQueue(grx->logical_device, grx->graphics_queue_index, 0, &grx->graphics_queue);
     vkGetDeviceQueue(grx->logical_device, grx->present_queue_index, 0, &grx->present_queue);
@@ -406,7 +416,47 @@ void create_swap_chain(GRX *grx)
     VkExtent2D extent = choose_swap_extent(grx->surface_capabilities, *grx->surface_width, *grx->surface_height);
     printf("[%s:%d] extent width %d, height %d\n", __func__, __LINE__, extent.width, extent.height);
 
-    // uint32_t image_count = capabilities.minImageCount;
+    uint32_t image_count = grx->surface_capabilities->minImageCount+1;
+    if (grx->surface_capabilities->maxImageCount > 0 && image_count > grx->surface_capabilities->maxImageCount)
+    {
+        image_count = grx->surface_capabilities->maxImageCount;
+    }
+    printf("[%s:%d] image count %d\n", __func__, __LINE__, image_count);
+
+    VkSwapchainCreateInfoKHR create_info = {};
+    create_info.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
+    create_info.surface = grx->surface;
+    create_info.minImageCount = image_count;
+    create_info.imageFormat = surface_format.format;
+    create_info.imageColorSpace = surface_format.colorSpace;
+    create_info.imageExtent = extent;
+    create_info.imageArrayLayers = 1;
+    create_info.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+
+    uint32_t queue_family_indices[] = {grx->graphics_queue_index, grx->present_queue_index};
+
+    if (queue_family_indices[0] != queue_family_indices[1])
+    {
+        create_info.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
+        create_info.queueFamilyIndexCount = 2;
+        create_info.pQueueFamilyIndices = queue_family_indices;
+    } else
+    {
+        create_info.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
+        create_info.queueFamilyIndexCount = 0; // Optional
+        create_info.pQueueFamilyIndices = NULL; // Optional
+    }
+
+    create_info.preTransform = grx->surface_capabilities->currentTransform;
+    create_info.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
+    create_info.presentMode = present_mode;
+    create_info.clipped = VK_TRUE;
+    create_info.oldSwapchain = VK_NULL_HANDLE;
+
+    if (vkCreateSwapchainKHR(grx->logical_device, &create_info, NULL, &grx->swap_chain) != VK_SUCCESS)
+    {
+        printf("[%s:%d] failed to create swap chain\n", __func__, __LINE__);
+    }
 }
 
 int init_grx(GRX *grx, const SURFACE *surface)
@@ -419,6 +469,8 @@ int init_grx(GRX *grx, const SURFACE *surface)
 
     if (!pick_physical_device(grx)) return 1;
 
+    create_logical_device(grx);
+
     create_swap_chain(grx);
 
     return 0;
@@ -426,6 +478,7 @@ int init_grx(GRX *grx, const SURFACE *surface)
 
 void free_grx(GRX *grx)
 {
+    vkDestroySwapchainKHR(grx->logical_device, grx->swap_chain, NULL);
     // allocated memory
     free(grx->surface_capabilities);
     grx->surface_capabilities = NULL;

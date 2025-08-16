@@ -457,6 +457,17 @@ void create_swap_chain(GRX *grx)
     {
         printf("[%s:%d] failed to create swap chain\n", __func__, __LINE__);
     }
+
+    vkGetSwapchainImagesKHR(grx->logical_device, grx->swap_chain, &grx->image_count, NULL);
+    grx->swap_chain_images = calloc(grx->image_count, sizeof (VkImage));
+    vkGetSwapchainImagesKHR(grx->logical_device, grx->swap_chain, &grx->image_count, grx->swap_chain_images);
+    grx->swap_chain_image_format = surface_format.format;
+    grx->swap_chain_extent = extent;
+}
+
+void create_image_views(GRX *grx)
+{
+    grx->swap_chain_image_views = calloc()
 }
 
 int init_grx(GRX *grx, const SURFACE *surface)
@@ -472,6 +483,8 @@ int init_grx(GRX *grx, const SURFACE *surface)
     create_logical_device(grx);
 
     create_swap_chain(grx);
+
+    create_image_views(grx);
 
     return 0;
 }

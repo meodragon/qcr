@@ -31,6 +31,11 @@ typedef struct grx
     uint32_t present_mode_count;
     VkPresentModeKHR *present_modes;
     VkSwapchainKHR swap_chain;
+    uint32_t image_count;
+    VkImage *swap_chain_images;
+    VkFormat swap_chain_image_format;
+    VkExtent2D swap_chain_extent;
+    VkImageView *swap_chain_image_views;
 } GRX;
 
 int init_grx(GRX *, const SURFACE *);

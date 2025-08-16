@@ -331,7 +331,7 @@ int pick_physical_device(GRX *grx)
             bool swap_chain_adequate = support_swap_chain(grx);
             if (extensions_supported && swap_chain_adequate) break;
 
-            grx->physical_device == VK_NULL_HANDLE;
+            grx->physical_device = VK_NULL_HANDLE;
 
             free(grx->surface_capabilities);
             grx->surface_capabilities = NULL;
@@ -467,7 +467,29 @@ void create_swap_chain(GRX *grx)
 
 void create_image_views(GRX *grx)
 {
-    grx->swap_chain_image_views = calloc()
+    grx->swap_chain_image_views = calloc(grx->image_count, sizeof(VkImageView));
+    for (uint32_t i = 0; i < grx->image_count; i++)
+    {
+        VkImageViewCreateInfo view_info = {};
+        view_info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+        view_info.image = grx->swap_chain_images[i];
+        view_info.viewType = VK_IMAGE_VIEW_TYPE_2D;
+        view_info.format = grx->swap_chain_image_format;
+        view_info.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
+        view_info.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
+        view_info.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
+        view_info.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
+        view_info.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        view_info.subresourceRange.baseMipLevel = 0;
+        view_info.subresourceRange.levelCount = 1;
+        view_info.subresourceRange.baseArrayLayer = 0;
+        view_info.subresourceRange.layerCount = 1;
+
+        if (vkCreateImageView(grx->logical_device, &view_info, NULL, &grx->swap_chain_image_views[i]) != VK_SUCCESS)
+        {
+            printf("[%s:%d] failed to create image view (index %d)\n", __func__, __LINE__, i);
+        }
+    }
 }
 
 int init_grx(GRX *grx, const SURFACE *surface)
@@ -491,6 +513,14 @@ int init_grx(GRX *grx, const SURFACE *surface)
 
 void free_grx(GRX *grx)
 {
+    for (uint32_t i = 0; i < grx->image_count; i++)
+    {
+        vkDestroyImageView(grx->logical_device, grx->swap_chain_image_views[i], NULL);
+    }
+    // allocated memory
+    free(grx->swap_chain_image_views);
+    free(grx->swap_chain_images);
+
     vkDestroySwapchainKHR(grx->logical_device, grx->swap_chain, NULL);
     // allocated memory
     free(grx->surface_capabilities);

@@ -531,14 +531,60 @@ void create_graphics_pipeline(GRX *grx)
     VkPipelineShaderStageCreateInfo shader_stages[] = {vert_shader_stage_create_info, frag_shader_stage_create_info};
 
     // Dynamic state
+    VkDynamicState dynamic_states[] = {VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR};
+    VkPipelineDynamicStateCreateInfo dynamic_state;
+    dynamic_state.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
+    dynamic_state.dynamicStateCount = sizeof(dynamic_states) / sizeof(dynamic_states[0]);
+    dynamic_state.pDynamicStates = dynamic_states;
 
     // Vertex input
+    VkPipelineVertexInputStateCreateInfo vertex_input_info = {};
+    vertex_input_info.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+    vertex_input_info.vertexBindingDescriptionCount = 0;
+    vertex_input_info.vertexAttributeDescriptionCount = 0;
+    vertex_input_info.pVertexAttributeDescriptions = NULL;
+    vertex_input_info.pVertexBindingDescriptions = NULL;
 
     // Input assembly
+    VkPipelineInputAssemblyStateCreateInfo input_assembly_info = {};
+    input_assembly_info.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
+    input_assembly_info.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+    input_assembly_info.primitiveRestartEnable = VK_FALSE;
 
     // Viewport and scissors
+    VkViewport viewport = {};
+    viewport.x = 0.0f;
+    viewport.y = 0.0f;
+    viewport.width = (float) grx->swap_chain_extent.width;
+    viewport.height = (float) grx->swap_chain_extent.height;
+    viewport.minDepth = 0.0f;
+    viewport.maxDepth = 1.0f;
+
+    VkRect2D scissor = {};
+    scissor.offset.x = 0;
+    scissor.offset.y = 0;
+    scissor.extent = grx->swap_chain_extent;
+
+    VkPipelineViewportStateCreateInfo viewport_info = {};
+    viewport_info.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
+    viewport_info.viewportCount = 1;
+    viewport_info.pViewports = &viewport;
+    viewport_info.scissorCount = 1;
+    viewport_info.pScissors = &scissor;
 
     // Rasterizer
+    VkPipelineRasterizationStateCreateInfo rasterization_info = {};
+    rasterization_info.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
+    rasterization_info.depthClampEnable = VK_FALSE;
+    rasterization_info.rasterizerDiscardEnable = VK_FALSE;
+    rasterization_info.polygonMode = VK_POLYGON_MODE_FILL;
+    rasterization_info.lineWidth = 1.0f;
+    rasterization_info.cullMode = VK_CULL_MODE_BACK_BIT;
+    rasterization_info.frontFace = VK_FRONT_FACE_CLOCKWISE;
+    rasterization_info.depthBiasEnable = VK_FALSE;
+    rasterization_info.depthBiasConstantFactor = 0.0f;
+    rasterization_info.depthBiasClamp = 0.0f;
+    rasterization_info.depthBiasSlopeFactor = 0.0f;
 
     // Multisampling
 

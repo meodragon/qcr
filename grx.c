@@ -7,6 +7,7 @@
 #include <string.h>
 
 #include "grx.h"
+#include "bytes.h"
 
 static VKAPI_ATTR VkBool32 VKAPI_CALL debug_callback(VkDebugUtilsMessageSeverityFlagBitsEXT msg_severity,
                                                      VkDebugUtilsMessageTypeFlagsEXT msgType, const VkDebugUtilsMessengerCallbackDataEXT *callback_data, void *user_data)
@@ -492,6 +493,63 @@ void create_image_views(GRX *grx)
     }
 }
 
+VkShaderModule create_shader_module(VkDevice device, byte_buffer buffer)
+{
+    VkShaderModuleCreateInfo create_info = {};
+    create_info.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+    create_info.codeSize = buffer.byte_count;
+    create_info.pCode = (uint32_t*)buffer.data;
+    VkShaderModule shader_module = VK_NULL_HANDLE;
+    if (vkCreateShaderModule(device, &create_info, NULL, &shader_module) != VK_SUCCESS)
+    {
+        printf("[%s:%d] failed to create shader module\n", __func__, __LINE__);
+    }
+    return shader_module;
+}
+
+void create_graphics_pipeline(GRX *grx)
+{
+    printf("[%s:%d] create graphics pipeline\n", __func__, __LINE__);
+    byte_buffer vert_shader_bytes = read_byte_buffer("vert.spv");
+    byte_buffer frag_shader_bytes = read_byte_buffer("frag.spv");
+    printf("[%s:%d] read byte buffers\n", __func__, __LINE__);
+    VkShaderModule vert_shader_module = create_shader_module(grx->logical_device, vert_shader_bytes);
+    VkShaderModule frag_shader_module = create_shader_module(grx->logical_device, frag_shader_bytes);
+
+    VkPipelineShaderStageCreateInfo vert_shader_stage_create_info = {};
+    vert_shader_stage_create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    vert_shader_stage_create_info.stage = VK_SHADER_STAGE_VERTEX_BIT;
+    vert_shader_stage_create_info.module = vert_shader_module;
+    vert_shader_stage_create_info.pName = "main";
+
+    VkPipelineShaderStageCreateInfo frag_shader_stage_create_info = {};
+    frag_shader_stage_create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    frag_shader_stage_create_info.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+    frag_shader_stage_create_info.module = frag_shader_module;
+    frag_shader_stage_create_info.pName = "main";
+
+    VkPipelineShaderStageCreateInfo shader_stages[] = {vert_shader_stage_create_info, frag_shader_stage_create_info};
+
+    // Dynamic state
+
+    // Vertex input
+
+    // Input assembly
+
+    // Viewport and scissors
+
+    // Rasterizer
+
+    // Multisampling
+
+    // Pipeline layout
+
+    vkDestroyShaderModule(grx->logical_device, vert_shader_module, NULL);
+    vkDestroyShaderModule(grx->logical_device, frag_shader_module, NULL);
+    free_byte_buffer(vert_shader_bytes);
+    free_byte_buffer(frag_shader_bytes);
+}
+
 int init_grx(GRX *grx, const SURFACE *surface)
 {
     if (create_instance(grx)) return 1;
@@ -508,6 +566,9 @@ int init_grx(GRX *grx, const SURFACE *surface)
 
     create_image_views(grx);
 
+    create_graphics_pipeline(grx);
+
+    printf("[%s:%d] init grx\n", __func__, __LINE__);
     return 0;
 }
 

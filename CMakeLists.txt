@@ -16,7 +16,10 @@ add_executable(qcr main.c icon.rc
         surface.h
         grx.c
         grx.h
-        ma.h)
+        ma.h
+        bytes.h
+        bytes.c
+)
 
 if (WIN32)
     target_link_libraries(qcr vulkan-1.lib)
